@@ -30,6 +30,96 @@ public class Confar {
         public T parse(String raw) throws  IllegalArgumentException;
     }
 
+    public static class Setting<T> {
+        
+        public Setting(String name, T defaultValue, TypeParser<T> typeParser) throws IllegalArgumentException {
+
+            if ((null == name) || name.isBlank()) {
+                throw new IllegalArgumentException("Setting must have a name");
+            }
+            
+            if (null == defaultValue) {
+                throw new IllegalArgumentException("Default value must not be null");
+            }
+            
+            if (null == typeParser) {
+                throw new IllegalArgumentException("TypeParser must not me null");
+            }
+            
+            this.name = name;
+            this.value = defaultValue;
+            this.required = false;
+            this.typeParser = typeParser;
+        }
+
+        public Setting(String name, TypeParser<T> typeParser) throws IllegalArgumentException {
+
+            if ((null == name) || name.isBlank()) {
+                throw new IllegalArgumentException("Setting must have a name");
+            }
+            
+            if (null == typeParser) {
+                throw new IllegalArgumentException("TypeParser must not me null");
+            }
+
+            this.name = name;
+            this.required = true;
+            this.typeParser = typeParser;
+        }
+        
+        private final String name;
+        
+        public String getName() {
+            return name;
+        }
+
+        private final boolean required;
+        
+        public boolean isRequired() {
+            return required;
+        }
+        
+        private T value = null;
+        
+        private void parse(String value) throws IllegalArgumentException {
+            this.value = typeParser.parse(value);
+        }
+        
+        public T get() throws IllegalStateException {
+            if (null == value) {
+                throw new IllegalStateException("Setting '" + name + "' has no value. Use Confar.load() to initialise settings before calling get() on them");
+            }
+            
+            return value;
+        }
+        
+        public void set(T value) {
+            if (null == value) {
+                throw new IllegalStateException("Setting '" + name + "' cannot be assigned a value of 'null'");
+            }
+
+            this.value = value;
+        }
+        
+        private final TypeParser<T> typeParser;
+        
+        public TypeParser<T> getTypeParser() {
+            return typeParser;
+        }
+        
+        private static final String DEFAULT_GROUP  = "";
+        
+        private String group = DEFAULT_GROUP;
+        
+        private String getGroup() {
+            return group;
+        }
+        
+        private void setGroup(String name) {
+            group = name;
+        }
+    }
+    
     private Confar() {
         ;
     }
