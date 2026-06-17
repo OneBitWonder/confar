@@ -16,8 +16,14 @@
  */
 package confar;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 /**
  *
@@ -124,7 +130,81 @@ public class Confar {
         ;
     }
     
-    public static void load(File file) throws IOException {
+    public static void load(File file, Map<String, Setting<?>> declaredSettings) throws IOException, IllegalArgumentException, IllegalStateException {
+        
+        if (null == file) {
+            throw new IOException("File must not be null");
+        }
+        
+        if ((null == declaredSettings) || declaredSettings.isEmpty()) {
+            throw new IllegalArgumentException("Settings list must not be null or empty");
+        }
+        
+        try (BufferedReader configFile = new BufferedReader(new InputStreamReader(new FileInputStream(file)))) {
+
+            int lines = 0;
+            String currentLine;
+            String group = "";
+            List<String> parsedSettings = new ArrayList<>();
+            
+            while (null != (currentLine = configFile.readLine())) {
+                lines++;
+
+                currentLine = currentLine.trim();
+
+                if (currentLine.isBlank()) {
+                    continue;
+                } else if (currentLine.startsWith("#")) {
+                    continue;
+                } else if (currentLine.startsWith(";")) {
+                    continue;
+                } else if (currentLine.startsWith("[")) {
+
+                    if (!currentLine.endsWith("]")) {
+                        throw new IllegalArgumentException("Invalid group header at line " + lines);
+                    }
+                    
+                    group = currentLine.substring(1, currentLine.length() - 1).trim();
+                    
+                    if (group.isBlank()) {
+                        throw new IllegalArgumentException("Invalid group name in line " + lines);
+                    }
+                    
+                    continue;
+                } else  {
+
+                    int index = currentLine.indexOf('=');
+
+                    if (-1 == index) {
+                        throw new IllegalArgumentException("Invalid line " + lines + ": expected key=value");
+                    }
+
+                    String key = currentLine.substring(0, index).trim();
+                    String val = currentLine.substring(index + 1).trim();
+
+                    if (parsedSettings.contains(key)) {
+                        throw new IllegalStateException("Duplicate setting '" + key + "' at line " + lines);
+                    }
+                    
+                    Setting setting = declaredSettings.get(key);
+                    
+                    if (null == setting) {
+                        throw new IllegalArgumentException("Unknown setting '" + key + "' at line " + lines);
+                    }
+                    
+                    setting.parse(val);
+                    setting.setGroup(group); // soft setting, no hard mapping
+                    
+                    parsedSettings.add(key);
+                }
+            }
+            
+            for (String key : declaredSettings.keySet()) {
+                if (!parsedSettings.contains(key) && declaredSettings.get(key).isRequired()) {
+                    throw new IllegalStateException("Missing required setting '" + key + "'");
+                }
+            }
+        }
     }
     
     public static void save(File file) throws IOException {
