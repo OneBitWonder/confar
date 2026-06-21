@@ -17,11 +17,16 @@
 package confar;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -207,6 +212,63 @@ public class Confar {
         }
     }
     
-    public static void save(File file) throws IOException {
+    public static void save(File file, List<Setting<?>> declaredSettings) throws IOException, IllegalStateException {
+        
+        if (null == file) {
+            throw new IOException("File must not be null");
+        }
+        
+        if ((null == declaredSettings) || declaredSettings.isEmpty()) {
+            throw new IllegalArgumentException("Settings list must not be null or empty");
+        }
+        
+        Map<String, List<Setting<?>>> groupedSettings = new LinkedHashMap<>();
+        
+        for (Setting setting : declaredSettings) {
+            
+            List<Setting<?>> groupedSetting = groupedSettings.get(setting.getGroup());
+            
+            if (null == groupedSetting) {
+                groupedSetting = new ArrayList<>();
+                groupedSettings.put(setting.getGroup(), groupedSetting);
+            }
+            
+            groupedSetting.add(setting);
+        }
+        
+        try (BufferedWriter configFile = new BufferedWriter (new OutputStreamWriter(new FileOutputStream(file)))) {
+            
+            List<Setting<?>> defaultGroup = groupedSettings.get("");
+            
+            if (null != defaultGroup) {
+                for (Setting setting : defaultGroup) {
+                    configFile.write(setting.getName());
+                    configFile.write('=');
+                    configFile.write(setting.get().toString());
+                    configFile.newLine();
+                }
+            }
+            
+            for (String group : groupedSettings.keySet()) {
+
+                if (!group.isBlank()) {
+                    configFile.write('[');
+                    configFile.write(group);
+                    configFile.write(']');
+                    configFile.newLine();
+                    
+                    List<Setting<?>> settings = groupedSettings.get(group);
+
+                    for (Setting setting : settings) {
+                        configFile.write(setting.getName());
+                        configFile.write('=');
+                        configFile.write(setting.get().toString());
+                        configFile.newLine();
+                    }
+                
+                    configFile.newLine();
+                }
+            }
+        }
     }
 }
